@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <style>
+            body, html {
+                padding: 0;
+                margin: 0;
+                background-color: #000;
+                overflow: hidden;
+            }
+
+            #video-background-1 {
+                position: fixed;
+                top: 0;
+                object-fit: cover;
+                z-index: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0.7;
+            }
+
+            canvas {
+              position: fixed;
+              top: 0;
+              left: 0;
+              z-index: 1;
+              mix-blend-mode: exclusion;
+            }
+        </style>
+    </head>
+
+    <body>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
+        <video id="video-background-1" autoplay muted loop>
+          <source src="test.mp4" type="video/mp4">
+        </video>
+
+        <script>
+          let numParticles = 100;
+          let cubeSize = 100;
+          let particles = [];
+          let audio;
+          let bins;
+          let bass, treble, lowMid, highMid;
+          let x, y, z;
+          let fft;
+          let boxRotation1 = 0;
+          let boxRotation2 = 0;
+
+          class Particle {
+            constructor(x, y, z, size) {
+              this.x = x;
+              this.y = y;
+              this.z = z;
+              this.size = size;
+            }
+
+            display() {
+              push();
+              translate(this.x, this.y, this.z);
+              fill(255);
+              stroke(0);
+              strokeWeight(1);
+              sphere(this.size);
+              pop();
+            }
+          }
+
+          function setup() {
+            createCanvas(window.innerWidth, window.innerHeight, WEBGL);
+            frameRate(60);
+
+            getAudioContext().suspend();
+
+            for (let i = 0; i < numParticles; i++) {
+              x = random(-cubeSize / 2, cubeSize / 2);
+              y = random(-cubeSize / 2, cubeSize / 2);
+              z = random(-cubeSize / 2, cubeSize / 2);
+              particles.push(new Particle(x, y, z, 10));
+            }
+          }
+
+          function mousePressed() {
+                userStartAudio();
+                audio = new p5.AudioIn();
+
+                if (audio) {
+                    audio.start();
+                    audio.amp(5);
+
+                    fft = new p5.FFT();
+                    fft.setInput(audio);
+                }
+            }
+
+          function draw() {
+            background(0);
+            rotateX(-boxRotation2);
+            rotateY(-boxRotation2);
+
+            // translate(0, 0, -500 * 1);
+
+            if (fft) {
+
+              let spectrum = fft.analyze();
+
+              bass = Math.floor(fft.getEnergy("bass", [0, 10]));
+              treble = Math.floor(fft.getEnergy("treble", [0, 100]));
+              lowMid = Math.floor(fft.getEnergy("lowMid", [0, 10]));
+              highMid = Math.floor(fft.getEnergy("highMid", [0, 10]));
+              
+              const minThreshold = 5;
+
+              bass = Math.max(bass, minThreshold);
+              treble = Math.max(treble, minThreshold);
+              lowMid = Math.max(lowMid, minThreshold);
+              highMid = Math.max(highMid, minThreshold);
+
+              bins = [bass, treble, lowMid, highMid];
+
+              push();
+              stroke("#008000");
+              strokeWeight(2);
+              noFill();
+              // translate(cubeSize / 2, 0, 0);
+              rotateX(-boxRotation2);
+              rotateY(-boxRotation2);
+              box(bass * 3);
+              pop();
+
+              push();
+              stroke("#ff0000");
+              strokeWeight(2);
+              noFill();
+              // translate(cubeSize / 2, 0, 0);
+              rotateX(boxRotation2);
+              box(highMid * 3);
+              pop();
+
+              push();
+              stroke("#0000ff");
+              strokeWeight(2);
+              noFill();
+              // translate(cubeSize / 2, 0, 0);
+              rotateX(-boxRotation2);
+              rotateY(-boxRotation2);
+              box(treble * 6);
+              pop();
+
+              particles = [];
+              for (let i = 0; i < numParticles; i++) {
+                x = random(-(treble * 5) / 2, (treble * 5) / 2);
+                y = random(-(treble * 5) / 2, (treble * 5) / 2);
+                z = random(-(treble * 5) / 2, (treble * 5) / 2);
+
+                let size = map((treble) * 5, 0, 255, 5, 20);
+                particles.push(new Particle(x, y, z, size));
+              }
+
+              for (let i = 0; i < numParticles; i++) {
+                particles[i].display();
+              }
+            }
+
+            boxRotation1 += 0.01;
+            boxRotation2 += 0.01;
+          }
+        </script>
+    </body>
+</html>
